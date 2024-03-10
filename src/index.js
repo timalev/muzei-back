@@ -6,7 +6,7 @@ const fs = require('fs');
 
 const path = require("path")
 const hbs = require("hbs")
-const connection = require("./mysqldb")
+
 const cors = require('cors');
 
 const multer = require('multer');
@@ -24,6 +24,21 @@ app.use(express.urlencoded({extended: false}))
 app.use('/src/uploads', express.static('uploads'));
 
 
+const mssql = require("mssql");
+
+    // config for your database
+    var config = {
+        user: 'sa',
+        password: 'BiZone__12',
+        server: 'localhost', 
+        database: 'muzei2' ,
+		charset: 'utf8',
+	  synchronize: true,
+        trustServerCertificate: true,
+    };
+
+
+const pool = mssql.connect(config);	
 
 const storage = multer.diskStorage({
 	
@@ -43,7 +58,35 @@ app.get("/", (req, res) => {
 })
 
 
+app.get("/testapi", (req, res) => {
 
+mssql.connect(config, function (err) {
+    
+        if (err) console.log(err);
+        var request = new mssql.Request();
+		   
+
+        request.query("SELECT * FROM  users", function (err, result) {
+            
+            if (err) console.log(err)
+			else console.log(result.recordset);
+			
+			res.send(JSON.stringify(result.recordset));
+
+       
+            
+        });
+    });
+	
+	
+	 res.setHeader('Access-Control-Allow-Origin', '*'); /* @dev First, read about security */
+     res.setHeader('Access-Control-Allow-Credentials', true);
+     res.setHeader('Access-Control-Allow-Methods','*'); // 30 days
+     res.setHeader('Access-Control-Allow-Headers', 'Access-Control-Allow-Headers, Origin,Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers'); //
+       
+	 
+
+})
 
 app.post("/adduser", (req, res) => {
 
@@ -55,17 +98,24 @@ app.post("/adduser", (req, res) => {
 		stuser = "false";
 		stadmin = "true";
 	}
-	
-
-	const user = [req.body.email,req.body.user, stuser, stadmin, req.body.type];
-    const sql = "INSERT INTO users(emails, uid, statususer, statusadmin, status) VALUES(?, ?, ?, ?, ?)";
  
-connection.query(sql, user, function(err, results) {
-    if(err) console.log(err);
-    //else console.log("Данные добавлены");
-});
-	//connection.end();
+ 
+	 mssql.connect(config, function (err) {
+    
+        if (err) console.log(err);
+        var request = new mssql.Request();
+		   
 
+        request.query("INSERT INTO users (emails, uid, statususer, statusadmin, status) VALUES('" + req.body.email + "','" + req.body.user + "', '" + stuser + "', '" + stadmin + "', '" + req.body.type + "')", function (err, recordset) {
+            
+            if (err) console.log(err)
+			else console.log(recordset);
+
+       
+            
+        });
+    });
+	
 
 	 res.setHeader('Access-Control-Allow-Origin', '*'); /* @dev First, read about security */
      res.setHeader('Access-Control-Allow-Credentials', true);
@@ -96,35 +146,27 @@ app.post("/uploadImage", upload.single("image"), (req, res) => {
 	}
 
 	//res.json({message: 'Image uploaded successfully'});
-
 	
+	
+    let sql = "UPDATE muzei SET names = '" + req.body.muzey + "', descr='" + req.body.descr + "' " + add_photo + " WHERE id = " + req.body.upd;
 
 
-	if (req.body.upd!='')
+	if (req.body.upd=='')
 	{
-		const sql = "UPDATE muzei SET names = '" + req.body.muzey + "', descr='" + req.body.descr + "' " + add_photo + " WHERE id = " + req.body.upd;
-		
-		connection.query(sql, function (err, result) {
-			if (err) console.log(err);
-			console.log(result.affectedRows + " record(s) updated");
-			});
-
-	}else{
-
-
-		const muzey = [req.body.muzey,req.body.descr,req.file.originalname,req.body.usr];
-
-
-	 const sql = "INSERT INTO  muzei(names, descr, photos, users) VALUES(?, ?, ?, ?)";
-	 
-	 connection.query(sql, muzey, function(err, results) {
-		 if(err) console.log(err);
-		 else console.log("Данные добавлены");
-		 });
-
+		sql = "INSERT INTO  muzei(names, descr, photos, users) VALUES('" + req.body.muzey + "','" + req.body.descr + "','" + req.file.originalname + "','" + req.body.usr + "')";
 	}
-
-
+	
+	 mssql.connect(config, function (err) {
+    
+        if (err) console.log(err);
+        var request = new mssql.Request();
+		   
+        request.query(sql, function (err, recordset) {
+            
+            if (err) console.log(err)
+			else console.log(recordset);
+        });
+    });
 
 	 res.setHeader('Access-Control-Allow-Origin', '*'); 
      res.setHeader('Access-Control-Allow-Credentials', true);
@@ -133,12 +175,10 @@ app.post("/uploadImage", upload.single("image"), (req, res) => {
          
      res.send("ok")
 
-
-	
-	//res.render("login")
 })
 
 
+// // api метод добавления нового музея
 
 
 app.post("/uploadVist", upload.single("image"), (req, res) => {
@@ -153,33 +193,29 @@ app.post("/uploadVist", upload.single("image"), (req, res) => {
 	}
 
 	//res.json({message: 'Image uploaded successfully'});
-
 	
+	let sql = "UPDATE vistavki SET muz = '" + req.body.muz + "', names = '" + req.body.vist + "', descr='" + req.body.descr + "' " + add_photo + " WHERE id = " + req.body.upd;
 
 
-	if (req.body.upd!='')
+	if (req.body.upd=='')
 	{
-		const sql = "UPDATE vistavki SET muz = '" + req.body.muz + "', names = '" + req.body.vist + "', descr='" + req.body.descr + "' " + add_photo + " WHERE id = " + req.body.upd;
-		
-		connection.query(sql, function (err, result) {
-			if (err) console.log(err);
-			console.log(result.affectedRows + " record(s) updated");
-			});
-
-	}else{
-
-
-		const vist = [req.body.muz,req.body.vist,req.body.descr,req.file.originalname,req.body.usr];
-
-
-	 const sql = "INSERT INTO vistavki(muz, names, descr, photos, users) VALUES(?, ?, ?, ?, ?)";
-	 
-	 connection.query(sql, vist, function(err, results) {
-		 if(err) console.log(err);
-		 else console.log("Данные добавлены");
-		 });
-
+		sql = "INSERT INTO vistavki(muz, names, descr, photos, users) VALUES('" + req.body.muz + "', '" + req.body.vist + "', '" + req.body.descr + "', '" + req.file.originalname + "', '" + req.body.usr + "')";
 	}
+	
+	mssql.connect(config, function (err) {
+    
+        if (err) console.log(err);
+        var request = new mssql.Request();
+		   
+
+        request.query(sql, function (err, recordset) {
+            
+            if (err) console.log(err)
+			else console.log(recordset);
+
+        });
+    });
+	
 
 	 res.setHeader('Access-Control-Allow-Origin', '*'); 
      res.setHeader('Access-Control-Allow-Credentials', true);
@@ -193,18 +229,20 @@ app.post("/uploadVist", upload.single("image"), (req, res) => {
 app.get("/getdatabyid", async (req, res) =>{
 
 	let id = req.query.id;
-
-	//console.log(id);
-
-	connection.query("SELECT * FROM muzei WHERE id=" + id,
-    function(err, results, fields) {
-    //console.log(err);
-    // console.log(results); // собственно данные
-    //console.log(fields); // мета-данные полей 
-
-	res.send(JSON.stringify(results));
-
-});
+	
+	mssql.connect(config, function (err) {
+    
+        if (err) console.log(err);
+        var request = new mssql.Request();
+		   
+        request.query("SELECT * FROM muzei WHERE id=" + id, function (err, results) {
+            
+            if (err) console.log(err)
+			else console.log(results);
+			
+			res.send(JSON.stringify(results.recordset));            
+        });
+    });
 
 });
 
@@ -212,16 +250,20 @@ app.get("/getdatabyid", async (req, res) =>{
 app.get("/getdatabyidv", async (req, res) =>{
 
 	let id = req.query.idv;
-
-	connection.query("SELECT * FROM vistavki WHERE id=" + id,
-    function(err, results, fields) {
-
-	res.send(JSON.stringify(results));
-});
-
-
-
-
+	
+	mssql.connect(config, function (err) {
+    
+        if (err) console.log(err);
+        var request = new mssql.Request();
+		   
+        request.query("SELECT * FROM vistavki WHERE id=" + id, function (err, results) {
+            
+            if (err) console.log(err)
+			else console.log(results);
+			
+			res.send(JSON.stringify(results.recordset));            
+        });
+    });
 });
 
 // api метод получения списка музеев для админов
@@ -229,12 +271,21 @@ app.get("/getdatabyidv", async (req, res) =>{
 app.get("/getmuzei", (req, res) => {
 
 	let user = req.query.user;
-
-	connection.query("SELECT * FROM muzei WHERE users='" + user + "'",
-    function(err, results, fields) {
-	res.send(JSON.stringify(results));
-   
-})
+	
+	 	 mssql.connect(config, function (err) {
+    
+        if (err) console.log(err);
+        var request = new mssql.Request();
+		   
+        request.query("SELECT * FROM muzei WHERE users='" + user + "'", function (err, results) {
+            
+            if (err) console.log(err)
+			else console.log(results);
+			
+			res.send(JSON.stringify(results.recordset));
+  
+        });
+    });
 });
 
 // api метод получения списка музеев для пользователей
@@ -242,13 +293,22 @@ app.get("/getmuzei", (req, res) => {
 app.get("/getallmuzei", (req, res) => {
 
 	let user = req.query.user;
+	
+	
+	 	mssql.connect(config, function (err) {
+    
+        if (err) console.log(err);
+        var request = new mssql.Request();
+		   
+        request.query("SELECT * FROM muzei", function (err, results) {
+            
+            if (err) console.log(err)
+			else console.log(results);
+			
+			res.send(JSON.stringify(results.recordset));            
+        });
+    });
 
-	connection.query("SELECT * FROM muzei",
-    function(err, results, fields) {
-    console.log(results);  
-	res.send(JSON.stringify(results));
-   
-})
 });
 
 
@@ -258,39 +318,67 @@ app.get("/delmuz", (req, res) => {
 
     let sql = "DELETE FROM muzei WHERE id=" + req.query.dm;
 	
-	connection.query(sql, function (err, result) {
-    if (err) throw err;
-	res.send("Number of records deleted: " + result.affectedRows);
+		mssql.connect(config, function (err) {
+    
+        if (err) console.log(err);
+        var request = new mssql.Request();
+		   
 
-  });
+        request.query(sql, function (err, recordset) {
+            
+            if (err) console.log(err)
+			else console.log(recordset);
 
+        });
+    });
+	
 });
+
+// api метод удаления выставки
+
 
 app.get("/delvis", (req, res) => {
 
     let sql = "DELETE FROM vistavki WHERE id=" + req.query.dv;
 	
-	connection.query(sql, function (err, result) {
-    if (err) throw err;
-	res.send("Number of records deleted: " + result.affectedRows);
+		mssql.connect(config, function (err) {
+    
+        if (err) console.log(err);
+        var request = new mssql.Request();
+		   
+        request.query(sql, function (err, recordset) {
+            
+            if (err) console.log(err)
+			else console.log(recordset);
 
-  });
+        });
+    });
+
 
 });
 
-
+// api метод получения списка выставок для пользователей
 
 app.get("/getvistavki", (req, res) => {
 
 	let user = req.query.user;
 
-	//console.log(user);
+	mssql.connect(config, function (err) {
+    
+        if (err) console.log(err);
+        var request = new mssql.Request();
+		   
+        request.query("SELECT * FROM vistavki WHERE users='" + user + "'", function (err, results) {
+            
+            if (err) console.log(err)
+			else console.log(results);
+			
+			res.send(JSON.stringify(results.recordset));            
+        });
+    });
 
-	connection.query("SELECT * FROM vistavki WHERE users='" + user + "'",
-    function(err, results, fields) {
-	res.send(JSON.stringify(results));
-
-})
+	
+	
 });
 
 
@@ -303,12 +391,20 @@ app.get("/getvistavkibymuz", (req, res) => {
 
     // let sql = "SELECT * FROM vistavki WHERE users='" + req.query.user + "' AND muz=" + req.query.muz;
 	
-	connection.query(sql, function (err, result) {
-    if (err) throw err;
-	res.send(JSON.stringify(result));
-
-  });
-
+	mssql.connect(config, function (err) {
+    
+        if (err) console.log(err);
+        var request = new mssql.Request();
+		   
+        request.query(sql, function (err, results) {
+            
+            if (err) console.log(err)
+			else console.log(results);
+			
+			res.send(JSON.stringify(results.recordset));            
+        });
+    });
+	
 });
 
 
@@ -320,13 +416,24 @@ app.get("/getmuzeirec", (req, res) => {
 	let user = req.query.user;
 	let id = req.query.id;
 	//console.log("SELECT * FROM muzei WHERE users='" + user + "' AND id=" + id);
+	
+	mssql.connect(config, function (err) {
+    
+        if (err) console.log(err);
+        var request = new mssql.Request();
+		   
+        request.query("SELECT * FROM muzei WHERE id=" + id, function (err, results) {
+            
+            if (err) console.log(err)
+			else console.log(results);
+			
+			res.send(JSON.stringify(results.recordset));            
+        });
+    });
+	
+	
 
-	connection.query("SELECT * FROM muzei WHERE id=" + id,
-    function(err, results, fields) {
 
-	res.send(JSON.stringify(results));
-     
-})
 });
 
 
@@ -335,11 +442,23 @@ app.get("/getmuzeirec", (req, res) => {
 app.get("/getvistrec", (req, res) => {
 
 	let id = req.query.id;
-	connection.query("SELECT * FROM vistavki WHERE  id=" + id,
-    function(err, results, fields) {
-	res.send(JSON.stringify(results));
-     
-})
+	
+	mssql.connect(config, function (err) {
+    
+        if (err) console.log(err);
+        var request = new mssql.Request();
+		   
+        request.query("SELECT * FROM vistavki WHERE  id=" + id, function (err, results) {
+            
+            if (err) console.log(err)
+			else console.log(results);
+			
+			res.send(JSON.stringify(results.recordset));            
+        });
+    });
+	
+	
+ 
 });
 
 
@@ -349,17 +468,27 @@ app.get("/booking", (req, res) => {
 
 	const zapis = [req.query.id ,req.query.user];
     
-	const sql = "INSERT INTO booking(vistavka, users) VALUES(?, ?)";
-	 
-	 connection.query(sql, zapis, function(err, results) {
-		 if(err) console.log(err);
-		 else 
-		 {	 
-		// console.log("Данные добавлены");
+	const sql = "INSERT INTO booking(vistavka, users) VALUES('" + req.query.id + "', '" + req.query.user + "')";
+	
+	mssql.connect(config, function (err) {
+    
+        if (err) console.log(err);
+        var request = new mssql.Request();
+		   
 
-		 res.send("Запись успешно добавлена!");
-		 }
-		 });
+        request.query(sql, function (err, recordset) {
+            
+            if (err) console.log(err)
+			else {
+				console.log(recordset);
+				res.send("Запись успешно добавлена!");
+			}
+
+        });
+    });
+	
+	
+
 });
 
 
@@ -369,13 +498,27 @@ app.get("/getstatus", (req, res) => {
 
 	let user = req.query.user;
 	
-	//console.log("SELECT * FROM users WHERE  uid='" + user + "'");
 	
-	connection.execute("SELECT * FROM users WHERE  uid='" + user + "'",
-    function(err, results, fields) {
-	res.send(JSON.stringify(results));
-     
-})
+	
+	 	 mssql.connect(config, function (err) {
+    
+        if (err) console.log(err);
+        var request = new mssql.Request();
+		   
+
+        request.query("SELECT * FROM users WHERE  uid='" + user + "'", function (err, results) {
+            
+            if (err) console.log(err)
+			else console.log(results);
+			
+			res.send(JSON.stringify(results.recordset));
+
+       
+            
+        });
+    });
+	
+
 		 
 
 });
